@@ -26,14 +26,17 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint {
       case Some(err) => logger.error(s"Error received $err")
         senderRef ! RedirectResponse(Nil, Some(s"Error from trulayer: $err"))
       case None =>
-        if(validatePermissions(providedPermissions = createPermissions(req.scope))) {
+        if(validatePermissions(providedPermissions = providedPermissions(req.scope))) {
           implicit val timeout2 : FiniteDuration = 10.seconds
           http.endpointEmptyBody[AccessTokenInfo](s"$trulayerUrl$tokenEndpoint&grant_type=authorization_code&$clientIdParam$clientId&$clientSecretParam$clientSecret&$redirectParam$redirectUrl&$codeParam${req.code}") onComplete {
-            case Success(token) => http.endpointGet[AccountResponse](s"$trulayerApi$accountsEndpoint", ("Authorization", s"Bearer: ${token.access_token}")) onComplete {
-              case Success(accounts) =>  senderRef ! RedirectResponse(accounts.results)
-              case Failure(t) => senderRef ! RedirectResponse(Nil, Some(s"Failed to get accounts: $t"))
+            case Success(token) =>
+              http.endpointGet[AccountResponse](s"$trulayerApi$accountsEndpoint", ("Authorization", s"Bearer: ${token.access_token}")) onComplete {
+                case Success(accounts) =>  senderRef ! RedirectResponse(accounts.results)
+                case Failure(t) => logger.error(s"Failed to get accounts", t)
+                  senderRef ! RedirectResponse(Nil, Some(s"Failed to get accounts: $t"))
             }
-            case Failure(t) => senderRef ! RedirectResponse(Nil, Some(s"Failed to get access token: $t"))
+            case Failure(t) => logger.error(s"Failed to get access token", t)
+              senderRef ! RedirectResponse(Nil, Some(s"Failed to get access token: $t"))
           }
         }
         else {
@@ -66,12 +69,16 @@ trait TrulayerEndpoint {
   val clientSecretParam = "client_secret="
   val redirectParam = "redirect_uri="
   val codeParam = "code="
-  val permissions = "enable_mock=true&enable_oauth_providers=true&enable_open_banking_providers=false&enable_credentials_sharing_providers=true"
   def createPermissions(perm: String) = {
     perm.split("&").map(_.split("="))
       .map(perm => TrulayerPermissions(perm(0), calculateBool(perm(1)))).toList
   }
-  val requiredPermissions = createPermissions(permissions)
+
+  def providedPermissions(perm: String) = {
+    perm.split(" ").map(perm => TrulayerPermissions(perm, true)).toList
+  }
+  val requiredPermissions = List(TrulayerPermissions("info"), TrulayerPermissions("accounts"), TrulayerPermissions("balance"),
+    TrulayerPermissions("transactions"), TrulayerPermissions("cards"), TrulayerPermissions("offline_access"))
 
   def calculateBool(bool: String) : Boolean = {
     bool match {

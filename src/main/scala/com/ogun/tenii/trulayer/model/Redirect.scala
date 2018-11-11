@@ -4,7 +4,7 @@ case class Redirect(code: String, scope: String, state: Option[String], error: O
 
 case class RedirectResponse(accounts: List[Account], error: Option[String] = None)
 
-case class TrulayerPermissions(permission: String, perm: Boolean)
+case class TrulayerPermissions(permission: String, perm: Boolean = true)
 
 
 
