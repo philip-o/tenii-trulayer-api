@@ -16,14 +16,14 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-@Path("/callback")
+@Path("/postauth")
 class RedirectRoute(implicit system: ActorSystem, breaker: CircuitBreaker) extends RequestDirectives with LazyLogging {
 
   implicit val executor: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout = Timeout(10.seconds)
   protected val trulayerActor: ActorRef = system.actorOf(Props(classOf[TrulayerActor]))
 
-  def route: Route = pathPrefix("callback") {
+  def route: Route = pathPrefix("postauth") {
     callback
   }
 
