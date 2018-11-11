@@ -16,7 +16,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint {
   implicit val system : ActorSystem = context.system
   val clientId: String = Properties.envOrElse("CLIENT_ID", "something")
   val clientSecret : String = Properties.envOrElse("CLIENT_SECRET", "blabla")
-  val redirectUrl = ""
+  val redirectUrl = "https://tenii-demo.herokuapp.com/postauth"
   val http = new HttpTransfers()
 
   override def receive: Receive = {
