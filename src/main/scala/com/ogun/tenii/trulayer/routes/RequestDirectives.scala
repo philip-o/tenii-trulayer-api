@@ -1,6 +1,6 @@
 package com.ogun.tenii.trulayer.routes
 
-import akka.http.scaladsl.server.{Directive1, Directives}
+import akka.http.scaladsl.server.{ Directive1, Directives }
 
 trait RequestDirectives extends Directives {
 

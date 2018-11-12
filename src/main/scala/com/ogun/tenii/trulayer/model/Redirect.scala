@@ -6,5 +6,3 @@ case class RedirectResponse(accounts: List[Account], error: Option[String] = Non
 
 case class TrulayerPermissions(permission: String, perm: Boolean = true)
 
-
-

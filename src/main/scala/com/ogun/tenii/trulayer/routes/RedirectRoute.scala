@@ -1,12 +1,12 @@
 package com.ogun.tenii.trulayer.routes
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
-import akka.pattern.{CircuitBreaker, ask}
+import akka.pattern.{ CircuitBreaker, ask }
 import akka.util.Timeout
 import com.ogun.tenii.trulayer.actors.TrulayerActor
-import com.ogun.tenii.trulayer.model.{Redirect, RedirectResponse}
+import com.ogun.tenii.trulayer.model.{ Redirect, RedirectResponse }
 import com.typesafe.scalalogging.LazyLogging
 import javax.ws.rs.Path
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
@@ -14,7 +14,7 @@ import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 @Path("/postauth")
 class RedirectRoute(implicit system: ActorSystem, breaker: CircuitBreaker) extends RequestDirectives with LazyLogging {

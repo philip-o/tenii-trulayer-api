@@ -1,5 +1,7 @@
 package com.ogun.tenii.trulayer.actors
 
+import java.net.URLEncoder
+
 import akka.actor.{Actor, ActorSystem}
 import com.ogun.tenii.trulayer.external.HttpTransfers
 import com.ogun.tenii.trulayer.model._
@@ -28,9 +30,12 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint {
       case None =>
         if(validatePermissions(providedPermissions = providedPermissions(req.scope))) {
           implicit val timeout2 : FiniteDuration = 10.seconds
-          val url = s"$trulayerUrl$tokenEndpoint&grant_type=authorization_code&$clientIdParam$clientId&$clientSecretParam$clientSecret&$redirectParam$redirectUrl&$codeParam${req.code}"
-          logger.info(s"url is $url")
-          http.endpointEmptyBody[AccessTokenInfo](url) onComplete {
+          val url = s"$trulayerUrl$tokenEndpoint"
+          val query = s"&grant_type=authorization_code&$clientIdParam$clientId&$clientSecretParam$clientSecret&$redirectParam$redirectUrl&$codeParam${req.code}"
+          val encoded = URLEncoder.encode(query, "UTF-8")
+          logger.info(s"url is $url$query")
+          logger.info(s"URL Encoded is $encoded")
+          http.endpointEmptyBody[AccessTokenInfo](s"$url$encoded") onComplete {
             case Success(token) =>
               http.endpointGet[AccountResponse](s"$trulayerApi$accountsEndpoint", ("Authorization", s"Bearer: ${token.access_token}")) onComplete {
                 case Success(accounts) =>  senderRef ! RedirectResponse(accounts.results)
