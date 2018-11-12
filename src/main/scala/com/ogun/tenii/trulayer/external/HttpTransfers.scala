@@ -34,7 +34,6 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
     sttp
       .post(uri"$endpoint")
       .readTimeout(timeout)
-      .contentType(ContentTypes.`application/json`.toString())
       .headers()
       .response(asJson[U])
       .send()
