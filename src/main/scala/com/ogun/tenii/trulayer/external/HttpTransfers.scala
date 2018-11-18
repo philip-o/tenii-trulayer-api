@@ -1,7 +1,10 @@
 package com.ogun.tenii.trulayer.external
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.ContentTypes
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.{ Unmarshal, Unmarshaller }
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.softwaremill.sttp._
@@ -11,8 +14,8 @@ import com.typesafe.scalalogging.LazyLogging
 import io.circe._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration._
 
 class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
 
@@ -34,6 +37,7 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
     sttp
       .post(uri"$endpoint")
       .readTimeout(timeout)
+      .contentType(ContentTypes.`application/json`.toString())
       .headers()
       .response(asJson[U])
       .send()
@@ -49,6 +53,24 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
       .response(asJson[U])
       .send()
       .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError))
+  }
+
+  def postAsForm[U](endpoint: String, params: (String, String)*)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U,
+    onErrorDecodingError: String => U, mat: ActorMaterializer, unmarshal: Unmarshaller[HttpResponse, U]): Future[U] = {
+    Http().singleRequest(HttpRequest(
+      uri = akka.http.scaladsl.model.Uri.apply(endpoint),
+      method = HttpMethods.POST,
+      entity = akka.http.scaladsl.model.FormData(params.toMap).toEntity(HttpCharsets.`UTF-8`),
+      protocol = HttpProtocols.`HTTP/1.1`
+    )).map {
+      resp =>
+        resp.status.intValue() match {
+          case 200 => onSuccess(Await.result(Unmarshal(resp).to[U], 1.seconds))
+          case other =>
+            resp.entity.discardBytes()
+            onErrorDecodingError(s"upstream response: http code: $other")
+        }
+    }
   }
 
   private def processResponse[T](res: Response[Either[Error, T]])(implicit onSuccess: T => T, onSuccessDecodingError: io.circe.Error => T, onErrorDecodingError: String => T): T = {
