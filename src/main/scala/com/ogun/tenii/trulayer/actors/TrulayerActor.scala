@@ -27,7 +27,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       req.error match {
         case Some(err) =>
           logger.error(s"Error received $err")
-          senderRef ! RedirectResponse(Nil, Some(s"Error from trulayer: $err"))
+          senderRef ! RedirectResponse(Nil, error = Some(s"Error from trulayer: $err"))
         case None =>
           if (validatePermissions(providedPermissions = providedPermissions(req.scope))) {
             implicit val timeout2: FiniteDuration = 10.seconds
@@ -37,17 +37,17 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
             http.postAsForm[AccessTokenInfo](s"$url",Seq(("grant_type","authorization_code"),(clientIdParam,clientId),(clientSecretParam, clientSecret),(redirectParam, redirectUrl),(codeParam, req.code))) onComplete {
               case Success(token) =>
                 http.endpointGetBearer[AccountResponse](s"$trulayerApi$accountsEndpoint", token.access_token) onComplete {
-                  case Success(accounts) => senderRef ! RedirectResponse(accounts.results)
+                  case Success(accounts) => senderRef ! RedirectResponse(accounts.results, token.access_token)
                   case Failure(t) =>
                     logger.error(s"Failed to get accounts", t)
-                    senderRef ! RedirectResponse(Nil, Some(s"Failed to get accounts: $t"))
+                    senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get accounts: $t"))
                 }
               case Failure(t) =>
                 logger.error(s"Failed to get access token", t)
-                senderRef ! RedirectResponse(Nil, Some(s"Failed to get access token: $t"))
+                senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get access token: $t"))
             }
           } else {
-            senderRef ! RedirectResponse(Nil, Some("Required permissions not given"))
+            senderRef ! RedirectResponse(Nil, error = Some("Required permissions not given"))
           }
       }
 
