@@ -36,7 +36,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
             logger.info(s"url is $url$query")
             http.postAsForm[AccessTokenInfo](s"$url",Seq(("grant_type","authorization_code"),(clientIdParam,clientId),(clientSecretParam, clientSecret),(redirectParam, redirectUrl),(codeParam, req.code))) onComplete {
               case Success(token) =>
-                http.endpointGet[AccountResponse](s"$trulayerApi$accountsEndpoint", ("Authorization", s"Bearer: ${token.access_token}")) onComplete {
+                http.endpointGetBearer[AccountResponse](s"$trulayerApi$accountsEndpoint", token.access_token) onComplete {
                   case Success(accounts) => senderRef ! RedirectResponse(accounts.results)
                   case Failure(t) =>
                     logger.error(s"Failed to get accounts", t)

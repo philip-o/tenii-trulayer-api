@@ -55,6 +55,17 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
       .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError))
   }
 
+  def endpointGetBearer[U](endpoint: String, token: String)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U): Future[U] = {
+    sttp
+      .auth.bearer(token)
+      .get(uri"$endpoint")
+      .readTimeout(timeout)
+      .contentType(ContentTypes.`application/json`.toString())
+      .response(asJson[U])
+      .send()
+      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError))
+  }
+
   def postAsForm[U](endpoint: String, params: Seq[(String, String)])(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U,
     onErrorDecodingError: String => U, mat: ActorMaterializer, unmarshal: Unmarshaller[HttpResponse, U]): Future[U] = {
     Http().singleRequest(HttpRequest(
