@@ -55,7 +55,7 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
       .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError))
   }
 
-  def postAsForm[U](endpoint: String, params: (String, String)*)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U,
+  def postAsForm[U](endpoint: String, params: Seq[(String, String)])(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U,
     onErrorDecodingError: String => U, mat: ActorMaterializer, unmarshal: Unmarshaller[HttpResponse, U]): Future[U] = {
     Http().singleRequest(HttpRequest(
       uri = akka.http.scaladsl.model.Uri.apply(endpoint),

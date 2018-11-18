@@ -34,7 +34,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
             val url = s"$trulayerUrl$tokenEndpoint"
             val query = s"&grant_type=authorization_code&$clientIdParam$clientId&$clientSecretParam$clientSecret&$redirectParam$redirectUrl&$codeParam${req.code}"
             logger.info(s"url is $url$query")
-            http.postAsForm[AccessTokenInfo](s"$url$query") onComplete {
+            http.postAsForm[AccessTokenInfo](s"$url",Seq(("grant_type","authorization_code"),(clientIdParam,clientId),(clientSecretParam, clientSecret),(redirectParam, redirectUrl),(codeParam, req.code))) onComplete {
               case Success(token) =>
                 http.endpointGet[AccountResponse](s"$trulayerApi$accountsEndpoint", ("Authorization", s"Bearer: ${token.access_token}")) onComplete {
                   case Success(accounts) => senderRef ! RedirectResponse(accounts.results)
@@ -46,18 +46,6 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
                 logger.error(s"Failed to get access token", t)
                 senderRef ! RedirectResponse(Nil, Some(s"Failed to get access token: $t"))
             }
-//            http.endpointEmptyBody[AccessTokenInfo](s"$url$query") onComplete {
-//              case Success(token) =>
-//                http.endpointGet[AccountResponse](s"$trulayerApi$accountsEndpoint", ("Authorization", s"Bearer: ${token.access_token}")) onComplete {
-//                  case Success(accounts) => senderRef ! RedirectResponse(accounts.results)
-//                  case Failure(t) =>
-//                    logger.error(s"Failed to get accounts", t)
-//                    senderRef ! RedirectResponse(Nil, Some(s"Failed to get accounts: $t"))
-//                }
-//              case Failure(t) =>
-//                logger.error(s"Failed to get access token", t)
-//                senderRef ! RedirectResponse(Nil, Some(s"Failed to get access token: $t"))
-//            }
           } else {
             senderRef ! RedirectResponse(Nil, Some("Required permissions not given"))
           }
@@ -83,10 +71,10 @@ trait TrulayerEndpoint {
   val trulayerApi = "https://api.truelayer.com/"
   val tokenEndpoint = "connect/token"
   val accountsEndpoint = "data/v1/accounts"
-  val clientIdParam = "client_id="
-  val clientSecretParam = "client_secret="
-  val redirectParam = "redirect_uri="
-  val codeParam = "code="
+  val clientIdParam = "client_id"
+  val clientSecretParam = "client_secret"
+  val redirectParam = "redirect_uri"
+  val codeParam = "code"
   def createPermissions(perm: String) = {
     perm.split("&").map(_.split("="))
       .map(perm => TrulayerPermissions(perm(0), calculateBool(perm(1)))).toList
