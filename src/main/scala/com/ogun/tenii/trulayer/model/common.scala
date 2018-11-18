@@ -5,4 +5,4 @@ case class Account(account_id: String, account_type: String, account_number: Acc
 
 case class Provider(display_name: String, logo_uri: String, provider_id: String)
 
-case class AccountNumbers(iban: String, number: String, sort_code: String, swift_bic: String)
+case class AccountNumbers(number: String, sort_code: String)
