@@ -11,8 +11,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Properties, Success}
 import com.ogun.tenii.trulayer.helpers.JsonSupport
+import com.ogun.tenii.trulayer.implicits.AccountImplicits
 
-class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with JsonSupport {
+class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with JsonSupport with AccountImplicits {
 
   implicit val system: ActorSystem = context.system
   implicit val mat: ActorMaterializer = ActorMaterializer()
@@ -38,7 +39,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
               case Success(token) =>
                 http.endpointGetBearer[AccountResponse](s"$trulayerApi$accountsEndpoint", token.access_token) onComplete {
                   case Success(accounts) =>  //TODO loop through accounts and get balances
-                    senderRef ! RedirectResponse(accounts.results, token.access_token)
+                    senderRef ! RedirectResponse(accounts.results.map(toRedirectAccount(_,0)), token.access_token)
                   case Failure(t) =>
                     logger.error(s"Failed to get accounts", t)
                     senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get accounts: $t"))
