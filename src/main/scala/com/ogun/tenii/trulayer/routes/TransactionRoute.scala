@@ -3,11 +3,14 @@ package com.ogun.tenii.trulayer.routes
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
-import akka.pattern.CircuitBreaker
+import akka.pattern.{CircuitBreaker, ask}
 import akka.util.Timeout
 import com.ogun.tenii.trulayer.actors.TrulayerActor
+import com.ogun.tenii.trulayer.model.{RedirectResponse, TransactionRequest}
 import com.typesafe.scalalogging.LazyLogging
 import javax.ws.rs.Path
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -26,7 +29,7 @@ class TransactionRoute(implicit system: ActorSystem, breaker: CircuitBreaker) ex
 
   def callback: Route = {
     get {
-      path(accountSegment).as(TellerTeniiPotGetRequest) { request =>
+      path(accountSegment).as(TransactionRequest) { request =>
         logger.info(s"POST /transactions - $request")
         onCompleteWithBreaker(breaker)(trulayerActor ? request) {
           case Success(msg: RedirectResponse) if msg.error.nonEmpty => complete(StatusCodes.InternalServerError -> msg)
