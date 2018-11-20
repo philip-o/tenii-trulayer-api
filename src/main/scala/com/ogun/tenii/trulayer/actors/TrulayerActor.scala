@@ -61,7 +61,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
   }
 
   def getBalanceAndUpdateMap(account: Account, token: String, actorRef: ActorRef, size: Int): Unit  = {
-    implicit val timeout2: FiniteDuration = 2.seconds
+    implicit val timeout2: FiniteDuration = 5.seconds
     http.endpointGetBearer[AccountBalances](s"$trulayerApi$accountsEndpoint/${account.account_id}$balance", token) onComplete {
       case Success(res) => createAccountAndSend(res.results.headOption.map(_.current).getOrElse(0.0))
       case Failure(t) => logger.error(s"Error thrown when attempting to get account with id: ${account.account_id}", t)
