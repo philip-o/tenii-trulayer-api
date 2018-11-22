@@ -3,18 +3,20 @@ package com.ogun.tenii.trulayer.external
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.unmarshalling.{ Unmarshal, Unmarshaller }
+import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import com.ogun.tenii.trulayer.model.TrulayerErrors
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.akkahttp.AkkaHttpBackend
 import com.softwaremill.sttp.circe._
 import com.typesafe.scalalogging.LazyLogging
 import io.circe._
+import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
 class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
@@ -91,8 +93,13 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
         logger.error(s"Error decoding upstream response: $decodingError")
         onSuccessDecodingError(decodingError)
       case Left(errorMsg) =>
-        logger.error(s"upstream response: http code: ${res.code}, message: $errorMsg")
-        onErrorDecodingError(s"upstream response: http code: ${res.code}, message: $errorMsg")
+        io.circe.parser.decode[TrulayerErrors](errorMsg) match {
+          case Right(resp) => onSuccessDecodingError(resp)
+          case Left(decodingError) =>
+            logger.error(s"upstream response: http code: ${res.code}, message: $errorMsg")
+            onErrorDecodingError(decodingError, errorMsg)
+        }
+
     }
   }
 }

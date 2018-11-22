@@ -35,7 +35,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
           senderRef ! RedirectResponse(Nil, error = Some(s"Error from trulayer: $err"))
         case None =>
           if (validatePermissions(providedPermissions = providedPermissions(req.scope))) {
-            implicit val timeout2: FiniteDuration = 10.seconds
+            implicit val timeout2: FiniteDuration = 20.seconds
             val url = s"$trulayerUrl$tokenEndpoint"
             val query = s"&grant_type=authorization_code&$clientIdParam$clientId&$clientSecretParam$clientSecret&$redirectParam$redirectUrl&$codeParam${req.code}"
             logger.info(s"url is $url$query")
