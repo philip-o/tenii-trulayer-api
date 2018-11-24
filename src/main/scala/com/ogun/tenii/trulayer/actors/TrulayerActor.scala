@@ -73,7 +73,9 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       val redirectAccount = toRedirectAccount(account, balance)
       val seq : Seq[RedirectAccount] = refAccounts.getOrElse(actorRef, Seq.empty).:+(redirectAccount)
       //refAccounts += actorRef -> seq
-      if(refSize.getOrElse(actorRef, 0.0) == seq.size) {
+      logger.info(s"Size of map is: ${seq.size}")
+      logger.info(s"Expected size is: ${refSize.getOrElse(actorRef, 0)}")
+      if(refSize.getOrElse(actorRef, 0) == seq.size) {
         val res = refAccounts.getOrElse(actorRef, Nil)
         actorRef ! RedirectResponse(res.toList, token)
         refSize.-=(actorRef)
