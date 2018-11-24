@@ -23,7 +23,7 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
 
   implicit private val sttpBackend: SttpBackend[Future, Source[ByteString, Any]] = AkkaHttpBackend.usingActorSystem(system)
 
-  def endpoint[T, U](endpoint: String, requestBody: T)(implicit timeout: FiniteDuration, encoder: Encoder[T], decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U): Future[U] = {
+  def endpoint[T, U](endpoint: String, requestBody: T)(implicit timeout: FiniteDuration, encoder: Encoder[T], decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U, onError: TrulayerErrors => U): Future[U] = {
     sttp
       .post(uri"$endpoint")
       .readTimeout(timeout)
@@ -32,10 +32,10 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
       .body(requestBody)
       .response(asJson[U])
       .send()
-      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError))
+      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError, onError))
   }
 
-  def endpointEmptyBody[U](endpoint: String)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U): Future[U] = {
+  def endpointEmptyBody[U](endpoint: String)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U, onError: TrulayerErrors => U): Future[U] = {
     sttp
       .post(uri"$endpoint")
       .readTimeout(timeout)
@@ -43,10 +43,10 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
       .headers()
       .response(asJson[U])
       .send()
-      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError))
+      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError, onError))
   }
 
-  def endpointGet[U](endpoint: String, headers: (String, String)*)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U): Future[U] = {
+  def endpointGet[U](endpoint: String, headers: (String, String)*)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U, onError: TrulayerErrors => U): Future[U] = {
     sttp
       .get(uri"$endpoint")
       .readTimeout(timeout)
@@ -54,10 +54,10 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
       .headers(headers.toMap)
       .response(asJson[U])
       .send()
-      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError))
+      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError, onError))
   }
 
-  def endpointGetBearer[U](endpoint: String, token: String)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U): Future[U] = {
+  def endpointGetBearer[U](endpoint: String, token: String)(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U, onSuccessDecodingError: io.circe.Error => U, onErrorDecodingError: String => U, onError: TrulayerErrors => U): Future[U] = {
     sttp
       .auth.bearer(token)
       .get(uri"$endpoint")
@@ -65,7 +65,7 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
       .contentType(ContentTypes.`application/json`.toString())
       .response(asJson[U])
       .send()
-      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError))
+      .map(processResponse(_)(onSuccess, onSuccessDecodingError, onErrorDecodingError, onError))
   }
 
   def postAsForm[U](endpoint: String, params: Seq[(String, String)])(implicit timeout: FiniteDuration, decoder: Decoder[U], onSuccess: U => U,
@@ -86,7 +86,7 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
     }
   }
 
-  private def processResponse[T](res: Response[Either[Error, T]])(implicit onSuccess: T => T, onSuccessDecodingError: io.circe.Error => T, onErrorDecodingError: String => T): T = {
+  private def processResponse[T](res: Response[Either[Error, T]])(implicit onSuccess: T => T, onSuccessDecodingError: io.circe.Error => T, onErrorDecodingError: String => T, onError: TrulayerErrors => T): T = {
     res.body match {
       case Right(Right(response)) => onSuccess(response)
       case Right(Left(decodingError)) =>
@@ -94,10 +94,10 @@ class HttpTransfers(implicit system: ActorSystem) extends LazyLogging {
         onSuccessDecodingError(decodingError)
       case Left(errorMsg) =>
         io.circe.parser.decode[TrulayerErrors](errorMsg) match {
-          case Right(resp) => onSuccessDecodingError(resp)
+          case Right(resp) => onError(resp)
           case Left(decodingError) =>
-            logger.error(s"upstream response: http code: ${res.code}, message: $errorMsg")
-            onErrorDecodingError(decodingError, errorMsg)
+            logger.error(s"upstream response: http code: ${res.code}, message: $errorMsg with obj : $decodingError")
+            onErrorDecodingError(errorMsg)
         }
 
     }

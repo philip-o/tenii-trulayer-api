@@ -61,9 +61,10 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
   }
 
   def getBalanceAndUpdateMap(account: Account, token: String, actorRef: ActorRef, size: Int): Unit  = {
-    implicit val timeout2: FiniteDuration = 5.seconds
+    implicit val timeout: FiniteDuration = 5.seconds
     http.endpointGetBearer[AccountBalances](s"$trulayerApi$accountsEndpoint/${account.account_id}$balance", token) onComplete {
-      case Success(res) => createAccountAndSend(res.results.headOption.map(_.current).getOrElse(0.0))
+      case Success(res) => logger.info(s"Account balance returned is: ${res.results.headOption.map(_.current).getOrElse(0)}")
+        createAccountAndSend(res.results.headOption.map(_.current).getOrElse(0.0))
       case Failure(t) => logger.error(s"Error thrown when attempting to get account with id: ${account.account_id}", t)
         createAccountAndSend(0.0)
     }
@@ -125,4 +126,5 @@ trait TrulayerEndpoint {
 
   implicit def onSuccessDecodingError[TellerResponse](decodingError: io.circe.Error): TellerResponse = throw new Exception(s"Error decoding trains upstream response: $decodingError")
   implicit def onErrorDecodingError[TellerResponse](decodingError: String): TellerResponse = throw new Exception(s"Error decoding upstream error response: $decodingError")
+  implicit def onError[TellerResponse](error: TrulayerErrors): TellerResponse = throw new Exception(s"Error thrown by Trulayer: ${error.results.headOption.map(_.error.getOrElse(""))}, description: ${error.results.headOption.map(_.error_description.getOrElse(""))}")
 }
