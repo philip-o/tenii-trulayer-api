@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.{CircuitBreaker, ask}
 import akka.util.Timeout
 import com.ogun.tenii.trulayer.actors.TrulayerActor
-import com.ogun.tenii.trulayer.model.{RedirectResponse, TransactionRequest}
+import com.ogun.tenii.trulayer.model.{RedirectResponse, TransactionRequest, TransactionsResponse}
 import com.typesafe.scalalogging.LazyLogging
 import javax.ws.rs.Path
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
@@ -32,8 +32,8 @@ class TransactionRoute(implicit system: ActorSystem, breaker: CircuitBreaker) ex
       (path(accountSegment) & tokenDirective).as(TransactionRequest) { request =>
         logger.info(s"POST /transactions - $request")
         onCompleteWithBreaker(breaker)(trulayerActor ? request) {
-          case Success(msg: RedirectResponse) if msg.error.nonEmpty => complete(StatusCodes.InternalServerError -> msg)
-          case Success(msg: RedirectResponse) => complete(StatusCodes.OK -> msg)
+          case Success(msg: TransactionsResponse) if msg.error.nonEmpty => complete(StatusCodes.InternalServerError -> msg)
+          case Success(msg: TransactionsResponse) => complete(StatusCodes.OK -> msg)
           case Failure(t) => failWith(t)
         }
       }
