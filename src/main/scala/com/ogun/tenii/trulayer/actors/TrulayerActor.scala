@@ -63,6 +63,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       implicit val timeout2: FiniteDuration = 20.seconds
       http.endpointGetBearer[TrulayerTransactionsResponse](s"$trulayerApi$accountsEndpoint/${req.accountId}", req.token) onComplete {
         case Success(accounts) =>
+          logger.info(s"Response from trulayer transactions is $accounts")
          senderRef ! TransactionsResponse(accounts.results.getOrElse(Nil))
           //TODO Send to payments api to add to pot
         case Failure(t) =>
