@@ -10,4 +10,6 @@ trait RequestDirectives extends Directives {
   val errorDirective: Directive1[Option[String]] = parameter("error".?)
   val accountSegment: PathMatcher1[String] = Segment
 
+  val tokenDirective: Directive1[String] = headerValueByName("token")
+
 }

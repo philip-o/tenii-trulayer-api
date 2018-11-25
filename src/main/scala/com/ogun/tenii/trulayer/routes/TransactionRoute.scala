@@ -29,7 +29,7 @@ class TransactionRoute(implicit system: ActorSystem, breaker: CircuitBreaker) ex
 
   def callback: Route = {
     get {
-      path(accountSegment).as(TransactionRequest) { request =>
+      (path(accountSegment) & tokenDirective).as(TransactionRequest) { request =>
         logger.info(s"POST /transactions - $request")
         onCompleteWithBreaker(breaker)(trulayerActor ? request) {
           case Success(msg: RedirectResponse) if msg.error.nonEmpty => complete(StatusCodes.InternalServerError -> msg)

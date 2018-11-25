@@ -58,12 +58,24 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
             senderRef ! RedirectResponse(Nil, error = Some("Required permissions not given"))
           }
       }
+    case req: TransactionRequest =>
+      val senderRef = sender()
+      implicit val timeout2: FiniteDuration = 20.seconds
+      http.endpointGetBearer[TrulayerTransactionsResponse](s"$trulayerApi$accountsEndpoint/${req.accountId}", req.token) onComplete {
+        case Success(accounts) =>
+         senderRef ! TransactionsResponse(accounts.results)
+          //TODO Send to payments api to add to pot
+        case Failure(t) =>
+          logger.error(s"Failed to get transactions", t)
+          senderRef ! TransactionsResponse(Nil, error = Some(s"Failed to get transaction: $t"))
+      }
+    case other => logger.error(s"Unknown message received: $other")
   }
 
   def getBalanceAndUpdateMap(account: Account, token: String, actorRef: ActorRef, size: Int): Unit  = {
     implicit val timeout: FiniteDuration = 5.seconds
     http.endpointGetBearer[AccountBalances](s"$trulayerApi$accountsEndpoint/${account.account_id}$balance", token) onComplete {
-      case Success(res) => logger.info(s"Account balance returned is: ${res.results.headOption.map(_.current).getOrElse(0)}")
+      case Success(res) => logger.debug(s"Account balance returned is: ${res.results.headOption.map(_.current).getOrElse(0)}")
         createAccountAndSend(res.results.headOption.map(_.current).getOrElse(0.0))
       case Failure(t) => logger.error(s"Error thrown when attempting to get account with id: ${account.account_id}", t)
         createAccountAndSend(0.0)
@@ -73,8 +85,8 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       val redirectAccount = toRedirectAccount(account, balance)
       val seq : Seq[RedirectAccount] = refAccounts.getOrElse(actorRef, Seq.empty).:+(redirectAccount)
       refAccounts += actorRef -> seq
-      logger.info(s"Size of seq is: ${seq.size}")
-      logger.info(s"Expected size is: ${refSize.getOrElse(actorRef, 0)}")
+      logger.debug(s"Size of seq is: ${seq.size}")
+      logger.debug(s"Expected size is: ${refSize.getOrElse(actorRef, 0)}")
       if(refSize.getOrElse(actorRef, 0) == seq.size) {
         val res = refAccounts.getOrElse(actorRef, Nil)
         actorRef ! RedirectResponse(res.toList, token)
@@ -103,6 +115,7 @@ trait TrulayerEndpoint {
   val trulayerApi = "https://api.truelayer.com/"
   val tokenEndpoint = "connect/token"
   val accountsEndpoint = "data/v1/accounts"
+  val transactionsEndpoint = "/transactions"
   val balance = "/balance"
   val clientIdParam = "client_id"
   val clientSecretParam = "client_secret"
