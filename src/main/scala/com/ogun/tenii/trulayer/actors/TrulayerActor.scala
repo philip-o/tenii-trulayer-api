@@ -139,7 +139,7 @@ trait TrulayerEndpoint {
     }
   }
 
-  implicit def onSuccessDecodingError[TellerResponse](decodingError: io.circe.Error): TellerResponse = throw new Exception(s"Error decoding trains upstream response: $decodingError")
+  implicit def onSuccessDecodingError[TellerResponse](decodingError: io.circe.Error): TellerResponse = throw new Exception(s"Error decoding trulayer upstream response: $decodingError")
   implicit def onErrorDecodingError[TellerResponse](decodingError: String): TellerResponse = throw new Exception(s"Error decoding upstream error response: $decodingError")
   implicit def onError[TellerResponse](error: TrulayerErrors): TellerResponse = throw new Exception(s"Error thrown by Trulayer: ${error.results.headOption.map(_.error.getOrElse(""))}, description: ${error.results.headOption.map(_.error_description.getOrElse(""))}")
 }
