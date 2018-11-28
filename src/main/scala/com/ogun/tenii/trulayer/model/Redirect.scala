@@ -4,7 +4,7 @@ case class Redirect(code: String, scope: String, state: Option[String], error: O
 
 case class RedirectAccount(account_id: String, account_type: String, account_number: AccountNumbers, currency: String, provider: Provider, balance: Double)
 
-case class RedirectResponse(accounts: List[RedirectAccount], accessToken: String = "", error: Option[String] = None)
+case class RedirectResponse(accounts: List[RedirectAccount], accessToken: String = "", refreshToken: String = "", error: Option[String] = None)
 
 case class TrulayerPermissions(permission: String, perm: Boolean = true)
 

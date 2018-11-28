@@ -45,7 +45,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
                   case Success(accounts) =>
                     refSize += senderRef -> accounts.results.size
                     refAccounts += senderRef -> Seq.empty
-                    accounts.results.foreach(acc => getBalanceAndUpdateMap(acc, token.access_token, senderRef, accounts.results.size))
+                    accounts.results.foreach(acc => getBalanceAndUpdateMap(acc, token.access_token, token.refresh_token, senderRef, accounts.results.size))
                   case Failure(t) =>
                     logger.error(s"Failed to get accounts", t)
                     senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get accounts: $t"))
@@ -73,7 +73,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
     case other => logger.error(s"Unknown message received: $other")
   }
 
-  def getBalanceAndUpdateMap(account: Account, token: String, actorRef: ActorRef, size: Int): Unit  = {
+  def getBalanceAndUpdateMap(account: Account, token: String, refreshToken: String, actorRef: ActorRef, size: Int): Unit  = {
     implicit val timeout: FiniteDuration = 5.seconds
     http.endpointGetBearer[AccountBalances](s"$trulayerApi$accountsEndpoint/${account.account_id}$balance", token) onComplete {
       case Success(res) => logger.debug(s"Account balance returned is: ${res.results.headOption.map(_.current).getOrElse(0)}")
@@ -90,7 +90,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       logger.debug(s"Expected size is: ${refSize.getOrElse(actorRef, 0)}")
       if(refSize.getOrElse(actorRef, 0) == seq.size) {
         val res = refAccounts.getOrElse(actorRef, Nil)
-        actorRef ! RedirectResponse(res.toList, token)
+        actorRef ! RedirectResponse(res.toList, token, refreshToken)
         refSize.-=(actorRef)
         refAccounts.-=(actorRef)
         ()
