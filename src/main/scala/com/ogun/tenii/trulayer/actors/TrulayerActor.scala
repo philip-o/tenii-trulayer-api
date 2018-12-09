@@ -11,7 +11,7 @@ import io.circe.generic.auto._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Properties, Success}
-import com.ogun.tenii.trulayer.helpers.JsonSupport
+import com.ogun.tenii.trulayer.helpers.{JsonSupport, UserUtil}
 import com.ogun.tenii.trulayer.implicits.AccountImplicits
 import com.ogun.tenii.trulayer.model.db.UserToken
 
@@ -55,7 +55,10 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
                     logger.error(s"Failed to get accounts", t)
                     senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get accounts: $t"))
                 }
-                saveToken(token, None, "tenii1")
+                val teniiId = UserUtil.newUsers.head
+                saveToken(token, None, teniiId)
+                UserUtil.newUsers -= teniiId
+                logger.debug(s"New users currently: ${UserUtil.newUsers}")
               case Failure(t) =>
                 logger.error(s"Failed to get access token", t)
                 senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get access token: $t"))
@@ -81,7 +84,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       loadUser(req.teniiId) onComplete {
         case Success(userOpt) => userOpt match {
           case Some(user) => updateAccessToken(user.refresh) onComplete {
-            case Success(newToken) => //TODO save token send to caller
+            case Success(newToken) =>
               senderRef ! TeniiTokenResponse(req.teniiId, Some(newToken.access_token))
               saveToken(newToken, Some(user), req.teniiId)
             case Failure(t) => logger.error(s"Unable to get new token for request: $req, investigate", t)
@@ -93,7 +96,6 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
         case Failure(t) => logger.error(s"Failure during lookup for user on request: $req", t)
           senderRef ! TeniiTokenResponse(req.teniiId, None, Some(s"Failure during lookup for user on request: $req"))
       }
-
     case other => logger.error(s"Unknown message received: $other")
   }
 
@@ -154,7 +156,6 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       }
     }
   }
-
 }
 
 trait TrulayerEndpoint {
