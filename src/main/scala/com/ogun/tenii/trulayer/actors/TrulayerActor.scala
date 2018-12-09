@@ -1,5 +1,7 @@
 package com.ogun.tenii.trulayer.actors
 
+import java.util.UUID
+
 import akka.actor.{Actor, ActorRef, ActorSystem}
 import akka.stream.ActorMaterializer
 import com.ogun.tenii.trulayer.db.UserTokenConnection
@@ -55,7 +57,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
                     logger.error(s"Failed to get accounts", t)
                     senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get accounts: $t"))
                 }
-                val teniiId = UserUtil.newUsers.head
+                val teniiId = UserUtil.newUsers.headOption.getOrElse(s"tenii-${UUID.randomUUID().toString}")
                 saveToken(token, None, teniiId)
                 UserUtil.newUsers -= teniiId
                 logger.debug(s"New users currently: ${UserUtil.newUsers}")
