@@ -27,8 +27,9 @@ object TeniiApp extends App with LazyLogging with RouteConcatenation {
   val redirectRoute = new RedirectRoute().route
   val transactionRoute = new TransactionRoute().route
   val pingRoute = new PingRoute().route
+  val userRoute = new UserRoute().route
 
-  val routes = redirectRoute ~ transactionRoute ~ pingRoute//~ healthRoute ~ swaggerDocRoute ~ swaggerSiteRoute ~ prebookingRoute ~ vendorRoute
+  val routes = redirectRoute ~ transactionRoute ~ pingRoute  ~ userRoute//~ healthRoute ~ swaggerDocRoute ~ swaggerSiteRoute ~ prebookingRoute ~ vendorRoute
 
   val port = Properties.envOrElse("PORT", "8080").toInt
   Http().bindAndHandle(routes, "0.0.0.0", port)
