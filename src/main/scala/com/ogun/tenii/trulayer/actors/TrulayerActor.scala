@@ -38,61 +38,66 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       req.error match {
         case Some(err) =>
           logger.error(s"Error received $err")
-          senderRef ! RedirectResponse(Nil, error = Some(s"Error from trulayer: $err"))
+          senderRef ! AccountsAndTokenResponse(Nil, error = Some(s"Error from trulayer: $err"))
         case None =>
           if (validatePermissions(providedPermissions = providedPermissions(req.scope))) {
             implicit val timeout2: FiniteDuration = 20.seconds
-            retrieveAccounts(req, senderRef)
+            retrieveAccountsWithRedirect(req, senderRef)
           } else {
-            senderRef ! RedirectResponse(Nil, error = Some("Required permissions not given"))
+            senderRef ! AccountsAndTokenResponse(Nil, error = Some("Required permissions not given"))
           }
       }
     case req: TransactionRequest =>
       implicit val timeout2: FiniteDuration = 20.seconds
       retrieveTransactions(req, sender())
-    case req: TeniiTokenRequest =>
+    case req: TeniiLoginRequest =>
       val senderRef = sender()
       loadUser(req.teniiId) onComplete {
         case Success(userOpt) => userOpt match {
           case Some(user) => updateAccessToken(user.refresh) onComplete {
             case Success(newToken) =>
-              senderRef ! TeniiTokenResponse(req.teniiId, Some(newToken.access_token))
+              implicit val timeout2: FiniteDuration = 20.seconds
+              retrieveAccounts(newToken.access_token, newToken.refresh_token, senderRef)
               saveToken(newToken, Some(user), req.teniiId)
             case Failure(t) => logger.error(s"Unable to get new token for request: $req, investigate", t)
-              senderRef ! TeniiTokenResponse(req.teniiId, Some("failure"), Some(s"Could not find a user for request: $req"))
+              senderRef ! AccountsAndTokenResponse(Nil, error = Some(s"Could not find a user for request: $req"))
           }
           case None => logger.error(s"User for request: $req not found, investigate")
-            senderRef ! TeniiTokenResponse(req.teniiId, Some("fake"), Some(s"Could not find a user for request: $req"))
+            senderRef ! AccountsAndTokenResponse(Nil, error = Some(s"Could not find a user for request: $req"))
         }
         case Failure(t) => logger.error(s"Failure during lookup for user on request: $req", t)
-          senderRef ! TeniiTokenResponse(req.teniiId, None, Some(s"Failure during lookup for user on request: $req"))
+          senderRef ! AccountsAndTokenResponse(Nil, error = Some(s"Failure during lookup for user on request: $req"))
       }
     case other => logger.error(s"Unknown message received: $other")
   }
 
-  private def retrieveAccounts(req: Redirect, senderRef: ActorRef)(implicit duration: FiniteDuration) = {
+  private def retrieveAccountsWithRedirect(req: Redirect, senderRef: ActorRef)(implicit duration: FiniteDuration) = {
     val url = s"$trulayerUrl$tokenEndpoint"
     val query = s"&grant_type=authorization_code&$clientIdParam$clientId&$clientSecretParam$clientSecret&$redirectParam$redirectUrl&$codeParam${req.code}"
     logger.info(s"url is $url$query")
     http.postAsForm[AccessTokenInfo](s"$url", Seq(("grant_type", "authorization_code"), (clientIdParam, clientId), (clientSecretParam, clientSecret), (redirectParam, redirectUrl), (codeParam, req.code))) onComplete {
       case Success(token) =>
         logger.debug(s"Token is: ${token.access_token}")
-        http.endpointGetBearer[AccountResponse](s"$trulayerApi$accountsEndpoint", token.access_token) onComplete {
-          case Success(accounts) =>
-            refSize += senderRef -> accounts.results.size
-            refAccounts += senderRef -> Seq.empty
-            accounts.results.foreach(acc => getBalanceAndUpdateMap(acc, token.access_token, token.refresh_token, senderRef, accounts.results.size))
-          case Failure(t) =>
-            logger.error(s"Failed to get accounts", t)
-            senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get accounts: $t"))
-        }
+        retrieveAccounts(token.access_token, token.refresh_token, senderRef)
         val teniiId = UserUtil.newUsers.headOption.getOrElse(s"tenii-${UUID.randomUUID().toString}")
         saveToken(token, None, teniiId)
         UserUtil.newUsers -= teniiId
         logger.debug(s"New users currently: ${UserUtil.newUsers}")
       case Failure(t) =>
         logger.error(s"Failed to get access token", t)
-        senderRef ! RedirectResponse(Nil, error = Some(s"Failed to get access token: $t"))
+        senderRef ! AccountsAndTokenResponse(Nil, error = Some(s"Failed to get access token: $t"))
+    }
+  }
+
+  private def retrieveAccounts(accessToken: String, refreshToken: String, senderRef: ActorRef)(implicit duration: FiniteDuration) = {
+    http.endpointGetBearer[AccountResponse](s"$trulayerApi$accountsEndpoint", accessToken) onComplete {
+      case Success(accounts) =>
+        refSize += senderRef -> accounts.results.size
+        refAccounts += senderRef -> Seq.empty
+        accounts.results.foreach(acc => getBalanceAndUpdateMap(acc, accessToken, refreshToken, senderRef, accounts.results.size))
+      case Failure(t) =>
+        logger.error(s"Failed to get accounts", t)
+        senderRef ! AccountsAndTokenResponse(Nil, error = Some(s"Failed to get accounts: $t"))
     }
   }
 
@@ -147,7 +152,7 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
       logger.debug(s"Expected size is: ${refSize.getOrElse(actorRef, 0)}")
       if(refSize.getOrElse(actorRef, 0) == seq.size) {
         val res = refAccounts.getOrElse(actorRef, Nil)
-        actorRef ! RedirectResponse(res.toList, token, refreshToken)
+        actorRef ! AccountsAndTokenResponse(res.toList, token, refreshToken)
         refSize.-=(actorRef)
         refAccounts.-=(actorRef)
         ()

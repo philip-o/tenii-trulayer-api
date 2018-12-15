@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.{ CircuitBreaker, ask }
 import akka.util.Timeout
 import com.ogun.tenii.trulayer.actors.TrulayerActor
-import com.ogun.tenii.trulayer.model.{ Redirect, RedirectResponse }
+import com.ogun.tenii.trulayer.model.{ Redirect, AccountsAndTokenResponse }
 import com.typesafe.scalalogging.LazyLogging
 import javax.ws.rs.Path
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
@@ -32,8 +32,8 @@ class RedirectRoute(implicit system: ActorSystem, breaker: CircuitBreaker) exten
       (path("callback") & codeDirective & scopeDirective & stateDirective & errorDirective).as(Redirect) { request =>
         logger.info(s"GET /callback - $request")
         onCompleteWithBreaker(breaker)(trulayerActor ? request) {
-          case Success(msg: RedirectResponse) if msg.error.nonEmpty => complete(StatusCodes.InternalServerError -> msg)
-          case Success(msg: RedirectResponse) => complete(StatusCodes.OK -> msg)
+          case Success(msg: AccountsAndTokenResponse) if msg.error.nonEmpty => complete(StatusCodes.InternalServerError -> msg)
+          case Success(msg: AccountsAndTokenResponse) => complete(StatusCodes.OK -> msg)
           case Failure(t) => failWith(t)
         }
       }
