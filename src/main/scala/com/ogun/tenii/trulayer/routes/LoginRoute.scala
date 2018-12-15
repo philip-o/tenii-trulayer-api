@@ -20,7 +20,7 @@ import scala.util.{Failure, Success}
 class LoginRoute(implicit system: ActorSystem, breaker: CircuitBreaker) extends RequestDirectives with LazyLogging {
 
   implicit val executor: ExecutionContext = system.dispatcher
-  implicit val timeout: Timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(30.seconds)
   protected val trulayerActor: ActorRef = system.actorOf(Props(classOf[TrulayerActor]))
 
   def route: Route = pathPrefix("login") {
