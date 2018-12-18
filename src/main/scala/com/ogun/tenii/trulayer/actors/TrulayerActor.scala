@@ -102,14 +102,25 @@ class TrulayerActor extends Actor with LazyLogging with TrulayerEndpoint with Js
   }
 
   private def retrieveTransactions(req: TransactionRequest, senderRef: ActorRef)(implicit duration: FiniteDuration) = {
-    http.endpointGetBearer[TrulayerTransactionsResponse](s"$trulayerApi$accountsEndpoint/${req.accountId}$transactionsEndpoint", req.token) onComplete {
-      case Success(trans) =>
-        //logger.debug(s"Response from trulayer transactions is $trans")
-        senderRef ! TransactionsResponse(trans.results.getOrElse(Nil))
-      //TODO Send to payments api to add to pot
-      case Failure(t) =>
-        logger.error(s"Failed to get transactions", t)
-        senderRef ! TransactionsResponse(Nil, error = Some(s"Failed to get transaction: $t"))
+    //TODO load token and pass into request
+    Future {
+      connection.findByTeniiId(req.token)
+    } onComplete {
+      case Success(tokenOpt) => tokenOpt match {
+        case Some(token) => http.endpointGetBearer[TrulayerTransactionsResponse](s"$trulayerApi$accountsEndpoint/${req.accountId}$transactionsEndpoint", token.access) onComplete {
+          case Success(trans) =>
+            //logger.debug(s"Response from trulayer transactions is $trans")
+            senderRef ! TransactionsResponse(trans.results.getOrElse(Nil))
+          //TODO Send to payments api to add to pot
+          case Failure(t) =>
+            logger.error(s"Failed to get transactions", t)
+            senderRef ! TransactionsResponse(Nil, error = Some(s"Failed to get transaction: $t"))
+        }
+        case None => logger.error(s"No token for user")
+          senderRef ! TransactionsResponse(Nil, error = Some(s"No token for user"))
+      }
+      case Failure(t) => logger.error(s"Failed to load token for request: $req", t)
+        senderRef ! TransactionsResponse(Nil, error = Some(s"Failed to load token for request: $req"))
     }
   }
 
