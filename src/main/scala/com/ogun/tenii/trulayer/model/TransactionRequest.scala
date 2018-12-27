@@ -8,3 +8,5 @@ case class Transaction(transaction_id: Option[String], timestamp:	Option[String]
                        amount: Option[Double], currency: Option[String], transaction_type: Option[String])
 
 case class TransactionsResponse(transactions: List[Transaction], error: Option[String] = None)
+
+case class GetTransactionResponse(transactionId: Option[String], teniiId: String)
