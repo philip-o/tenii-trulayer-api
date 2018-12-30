@@ -136,14 +136,14 @@ class TrulayerActor extends Actor
     implicit val duration = 20.seconds
     http.endpointGet[SourceBankAccountResponse](s"$productsUrl$accountPath$teniiId") onComplete {
       case Success(response) => response.accountId match {
-        case Some(_) => http.endpointGet[GetTransactionResponse](s"$productsUrl$transactionPath/$teniiId") onComplete {
+        case Some(accountId) => http.endpointGet[GetTransactionResponse](s"$productsUrl$transactionPath/$teniiId") onComplete {
           case Success(tranOpt) => tranOpt.transactionId match {
             case Some(id) => val split = transactions.span(_.transaction_id.get == id)
               if(split._2.isEmpty)
-                loopThroughTransactions(transactions)
+                loopThroughTransactions(transactions, accountId)
               else
-                loopThroughTransactions(split._2)
-            case None => loopThroughTransactions(transactions)
+                loopThroughTransactions(split._2, accountId)
+            case None => loopThroughTransactions(transactions, accountId)
           }
           case Failure(t) => logger.error(s"error thrown when getting last transaction, please run manually and then process for user: $teniiId", t)
         }
@@ -152,10 +152,10 @@ class TrulayerActor extends Actor
       case Failure(t) => logger.error(s"Failed to get account, unable to process transactions", t)
     }
 
-    def loopThroughTransactions(toLoop: List[Transaction]) = {
+    def loopThroughTransactions(toLoop: List[Transaction], accountId: String) = {
 
       for(transaction <- toLoop) {
-        http.endpoint[ProcessTransactionRequest, ProcessTransactionResponse](s"$productsUrl$transactionPath", toProcessTransactionRequest(transaction, teniiId)) onComplete {
+        http.endpoint[ProcessTransactionRequest, ProcessTransactionResponse](s"$productsUrl$transactionPath", toProcessTransactionRequest(transaction, teniiId, accountId: String)) onComplete {
           case Success(_) => logger.debug(s"Processed transaction successfully: ${transaction.transaction_id}")
           case Failure(t) => logger.error(s"Failed to process transaction: ${transaction.transaction_id}", t)
         }

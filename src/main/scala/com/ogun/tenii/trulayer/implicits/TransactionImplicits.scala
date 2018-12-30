@@ -6,12 +6,10 @@ import com.ogun.tenii.trulayer.model.{ProcessTransactionRequest, Transaction}
 
 trait TransactionImplicits {
 
-  private def randomUUID = UUID.randomUUID().toString
-
-  def toProcessTransactionRequest(transaction: Transaction, teniiId: String) = {
+  def toProcessTransactionRequest(transaction: Transaction, teniiId: String, accountId: String) = {
     ProcessTransactionRequest(
-      transaction.transaction_id.getOrElse(randomUUID),
-      randomUUID,
+      transaction.transaction_id.getOrElse(UUID.randomUUID().toString),
+      accountId,
       teniiId,
       transaction.amount.getOrElse(0),
       transaction.timestamp.getOrElse("")
