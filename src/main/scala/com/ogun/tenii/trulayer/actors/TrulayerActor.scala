@@ -153,12 +153,22 @@ class TrulayerActor extends Actor
     }
 
     def loopThroughTransactions(toLoop: List[Transaction]) = {
-      toLoop.foreach {
-        transaction => http.endpoint[ProcessTransactionRequest, ProcessTransactionResponse](s"$productsUrl$transactionPath", toProcessTransactionRequest(transaction, teniiId)) onComplete {
+
+      for(transaction <- toLoop) {
+        http.endpoint[ProcessTransactionRequest, ProcessTransactionResponse](s"$productsUrl$transactionPath", toProcessTransactionRequest(transaction, teniiId)) onComplete {
           case Success(_) => logger.debug(s"Processed transaction successfully: ${transaction.transaction_id}")
           case Failure(t) => logger.error(s"Failed to process transaction: ${transaction.transaction_id}", t)
         }
+        //TODO Change logic to remove sleep
+        Thread.sleep(2000)
       }
+
+//      toLoop.foreach {
+//        transaction => http.endpoint[ProcessTransactionRequest, ProcessTransactionResponse](s"$productsUrl$transactionPath", toProcessTransactionRequest(transaction, teniiId)) onComplete {
+//          case Success(_) => logger.debug(s"Processed transaction successfully: ${transaction.transaction_id}")
+//          case Failure(t) => logger.error(s"Failed to process transaction: ${transaction.transaction_id}", t)
+//        }
+//      }
     }
   }
 
