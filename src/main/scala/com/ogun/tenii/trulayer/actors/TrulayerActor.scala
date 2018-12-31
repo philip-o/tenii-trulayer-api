@@ -143,7 +143,7 @@ class TrulayerActor extends Actor
               val transIdsAndDates = (ids, tranOpt.date.map(NumberHelper.dateToNumber).get)
               val partitioned = transactions.partition(tr => NumberHelper.dateToNumber(tr.timestamp.get) >= transIdsAndDates._2)
               val remaining = partitioned._1.filterNot(tran => ids.contains(tran.transaction_id.get))
-              loopThroughTransactions(remaining.sortBy(d => NumberHelper.dateToNumber(d.timestamp.get)), accountId)
+              loopThroughTransactions(remaining.sortWith((i,j) => NumberHelper.dateToNumber(i.timestamp.get) < NumberHelper.dateToNumber(j.timestamp.get)), accountId)
 //              val split = transactions.span(_.transaction_id.get == ids.last)
 //              if(split._2.isEmpty)
 //                loopThroughTransactions(transactions, accountId)
