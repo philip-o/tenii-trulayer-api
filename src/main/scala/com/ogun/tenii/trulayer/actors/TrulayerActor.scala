@@ -138,7 +138,7 @@ class TrulayerActor extends Actor
       case Success(response) => response.accountId match {
         case Some(accountId) => http.endpointGet[GetTransactionResponse](s"$productsUrl$transactionPath/$teniiId") onComplete {
           case Success(tranOpt) => tranOpt.transactionIds match {
-            case Nil => loopThroughTransactions(transactions, accountId)
+            case Nil => loopThroughTransactions(transactions.sortWith((i,j) => NumberHelper.dateToNumber(i.timestamp.get) < NumberHelper.dateToNumber(j.timestamp.get)), accountId)
             case ids =>
               val transIdsAndDates = (ids, tranOpt.date.map(NumberHelper.dateToNumber).get)
               val partitioned = transactions.partition(tr => NumberHelper.dateToNumber(tr.timestamp.get) >= transIdsAndDates._2)
