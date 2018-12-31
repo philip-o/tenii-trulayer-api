@@ -13,7 +13,7 @@ import io.circe.generic.auto._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Properties, Success}
-import com.ogun.tenii.trulayer.helpers.{JsonSupport, UserUtil}
+import com.ogun.tenii.trulayer.helpers.{JsonSupport, NumberHelper, UserUtil}
 import com.ogun.tenii.trulayer.implicits.{AccountImplicits, TransactionImplicits}
 import com.ogun.tenii.trulayer.model.db.UserToken
 
@@ -137,13 +137,18 @@ class TrulayerActor extends Actor
     http.endpointGet[SourceBankAccountResponse](s"$productsUrl$accountPath$teniiId") onComplete {
       case Success(response) => response.accountId match {
         case Some(accountId) => http.endpointGet[GetTransactionResponse](s"$productsUrl$transactionPath/$teniiId") onComplete {
-          case Success(tranOpt) => tranOpt.transactionId match {
-            case Some(id) => val split = transactions.span(_.transaction_id.get == id)
-              if(split._2.isEmpty)
-                loopThroughTransactions(transactions, accountId)
-              else
-                loopThroughTransactions(split._2, accountId)
-            case None => loopThroughTransactions(transactions, accountId)
+          case Success(tranOpt) => tranOpt.transactionIds match {
+            case Nil => loopThroughTransactions(transactions, accountId)
+            case ids =>
+              val transIdsAndDates = (ids, tranOpt.date.map(NumberHelper.dateToNumber).get)
+              val partitioned = transactions.partition(tr => NumberHelper.dateToNumber(tr.timestamp.get) >= transIdsAndDates._2)
+              val remaining = partitioned._1.filterNot(tran => ids.contains(tran.transaction_id.get))
+              loopThroughTransactions(remaining, accountId)
+//              val split = transactions.span(_.transaction_id.get == ids.last)
+//              if(split._2.isEmpty)
+//                loopThroughTransactions(transactions, accountId)
+//              else
+//                loopThroughTransactions(split._2, accountId)
           }
           case Failure(t) => logger.error(s"error thrown when getting last transaction, please run manually and then process for user: $teniiId", t)
         }

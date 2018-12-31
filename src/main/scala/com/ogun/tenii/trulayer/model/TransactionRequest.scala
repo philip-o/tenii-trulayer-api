@@ -9,4 +9,4 @@ case class Transaction(transaction_id: Option[String], timestamp:	Option[String]
 
 case class TransactionsResponse(transactions: List[Transaction], error: Option[String] = None)
 
-case class GetTransactionResponse(transactionId: Option[String], teniiId: String)
+case class GetTransactionResponse(transactionIds: List[String], teniiId: String, date: Option[String])
