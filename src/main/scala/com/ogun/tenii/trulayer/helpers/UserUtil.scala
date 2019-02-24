@@ -4,4 +4,5 @@ import scala.collection.mutable
 
 object UserUtil {
   val newUsers = mutable.Set[String]()
+  val newUsersMap = mutable.Map[String, String]()
 }

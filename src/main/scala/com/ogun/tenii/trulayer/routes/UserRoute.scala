@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.pattern.CircuitBreaker
 import com.ogun.tenii.trulayer.helpers.UserUtil
-import com.ogun.tenii.trulayer.model.NewUser
+import com.ogun.tenii.trulayer.model.{NewUser, Status}
 import com.typesafe.scalalogging.LazyLogging
 import javax.ws.rs.Path
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
@@ -23,8 +23,9 @@ class UserRoute(implicit system: ActorSystem, breaker: CircuitBreaker) extends R
       entity(as[NewUser]) { request =>
         logger.info(s"POST /newUser - $request")
         UserUtil.newUsers.add(request.teniiId)
-        complete(StatusCodes.OK)
+        complete(StatusCodes.OK -> Status())
       }
     }
   }
 }
+
