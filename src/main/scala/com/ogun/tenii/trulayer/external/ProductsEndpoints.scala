@@ -1,7 +1,9 @@
 package com.ogun.tenii.trulayer.external
 
+import com.ogun.tenii.trulayer.config.Settings
+
 trait ProductsEndpoints {
-  val productsUrl = "https://tenii-products-api.herokuapp.com/"
-  val accountPath = "bankAccount/"
-  val transactionPath = "transaction"
+  val productsUrl = Settings.productsHost
+  val accountPath = Settings.bankAccountPath
+  val transactionPath = Settings.transactionPath
 }

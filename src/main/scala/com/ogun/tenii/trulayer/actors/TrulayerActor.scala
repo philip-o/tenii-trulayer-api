@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorRef, ActorSystem}
 import akka.stream.ActorMaterializer
+import com.ogun.tenii.trulayer.config.Settings
 import com.ogun.tenii.trulayer.db.UserTokenConnection
 import com.ogun.tenii.trulayer.external.{HttpTransfers, ProductsEndpoints}
 import com.ogun.tenii.trulayer.model._
@@ -237,12 +238,12 @@ class TrulayerActor extends Actor
 }
 
 trait TrulayerEndpoint {
-  val trulayerUrl = "https://auth.truelayer.com/"
-  val trulayerApi = "https://api.truelayer.com/"
-  val tokenEndpoint = "connect/token"
-  val accountsEndpoint = "data/v1/accounts"
-  val transactionsEndpoint = "/transactions"
-  val balance = "/balance"
+  val trulayerUrl = Settings.trulayerAuthURL
+  val trulayerApi = Settings.trulayerApiEndpoint
+  val tokenEndpoint = Settings.tokenPath
+  val accountsEndpoint = Settings.accountsPath
+  val transactionsEndpoint = Settings.trulayerTransactionsPath
+  val balance = Settings.trulayerBalancePath
   val clientIdParam = "client_id"
   val clientSecretParam = "client_secret"
   val redirectParam = "redirect_uri"
