@@ -35,8 +35,8 @@ class TrulayerActor extends Actor
   val clientSecret: String = Properties.envOrElse("CLIENT_SECRET", "blabla")
   val redirectUrl = "https://tenii-demo.herokuapp.com/postauth"
   val http = new HttpTransfers()
-  val refSize = mutable.Map[ActorRef, Int]()
-  val refAccounts = mutable.Map[ActorRef, Seq[RedirectAccount]]()
+  val refSize : mutable.Map[ActorRef, Int] = mutable.Map[ActorRef, Int]()
+  val refAccounts : mutable.Map[ActorRef, Seq[RedirectAccount]] = mutable.Map[ActorRef, Seq[RedirectAccount]]()
   val connection = new UserTokenConnection
 
   override def receive: Receive = {
@@ -78,7 +78,7 @@ class TrulayerActor extends Actor
     case other => logger.error(s"Unknown message received: $other")
   }
 
-  private def retrieveAccountsWithRedirect(req: Redirect, senderRef: ActorRef)(implicit duration: FiniteDuration) = {
+  private def retrieveAccountsWithRedirect(req: Redirect, senderRef: ActorRef)(implicit duration: FiniteDuration): Unit = {
     val url = s"$trulayerUrl$tokenEndpoint"
     val query = s"&grant_type=authorization_code&$clientIdParam$clientId&$clientSecretParam$clientSecret&$redirectParam$redirectUrl&$codeParam${req.code}"
     logger.info(s"url is $url$query")
@@ -96,7 +96,7 @@ class TrulayerActor extends Actor
     }
   }
 
-  private def retrieveAccounts(accessToken: String, refreshToken: String, senderRef: ActorRef)(implicit duration: FiniteDuration) = {
+  private def retrieveAccounts(accessToken: String, refreshToken: String, senderRef: ActorRef)(implicit duration: FiniteDuration) : Unit = {
     http.endpointGetBearer[AccountResponse](s"$trulayerApi$accountsEndpoint", accessToken) onComplete {
       case Success(accounts) =>
         refSize += senderRef -> accounts.results.size
@@ -108,10 +108,10 @@ class TrulayerActor extends Actor
     }
   }
 
-  private def retrieveTransactions(req: TransactionRequest, senderRef: ActorRef)(implicit duration: FiniteDuration) = {
+  private def retrieveTransactions(req: TransactionRequest, senderRef: ActorRef)(implicit duration: FiniteDuration) : Unit = {
     //TODO load token and pass into request
     Future {
-      connection.findByTeniiId(req.token)
+      connection.findByAccessToken(req.token)
     } onComplete {
       case Success(tokenOpt) => tokenOpt match {
         case Some(token) => http.endpointGetBearer[TrulayerTransactionsResponse](s"$trulayerApi$accountsEndpoint/${req.accountId}$transactionsEndpoint", token.access) onComplete {
@@ -133,8 +133,8 @@ class TrulayerActor extends Actor
     }
   }
 
-  private def processTransactions(transactions: List[Transaction], teniiId: String) = {
-    implicit val duration = 20.seconds
+  private def processTransactions(transactions: List[Transaction], teniiId: String) : Unit = {
+    implicit val duration : FiniteDuration = 20.seconds
     http.endpointGet[SourceBankAccountResponse](s"$productsUrl$accountPath$teniiId") onComplete {
       case Success(response) => response.accountId match {
         case Some(accountId) => http.endpointGet[GetTransactionResponse](s"$productsUrl$transactionPath/$teniiId") onComplete {
@@ -158,7 +158,7 @@ class TrulayerActor extends Actor
       case Failure(t) => logger.error(s"Failed to get account, unable to process transactions", t)
     }
 
-    def loopThroughTransactions(toLoop: List[Transaction], accountId: String) = {
+    def loopThroughTransactions(toLoop: List[Transaction], accountId: String) : Unit = {
 
       for(transaction <- toLoop) {
         http.endpoint[ProcessTransactionRequest, ProcessTransactionResponse](s"$productsUrl$transactionPath", toProcessTransactionRequest(transaction, teniiId, accountId: String)) onComplete {
@@ -178,13 +178,13 @@ class TrulayerActor extends Actor
     }
   }
 
-  def updateAccessToken(refreshToken: String) = {
+  def updateAccessToken(refreshToken: String) : Future[AccessTokenInfo] = {
     implicit val timeout2: FiniteDuration = 10.seconds
     val url = s"$trulayerUrl$tokenEndpoint"
     http.postAsForm[AccessTokenInfo](s"$url",Seq(("grant_type","refresh_token"),(clientIdParam,clientId),(clientSecretParam, clientSecret),(redirectParam, redirectUrl),(refreshParam, refreshToken)))
   }
 
-  def saveToken(token: AccessTokenInfo, oldToken: Option[UserToken], tenii: String) = {
+  def saveToken(token: AccessTokenInfo, oldToken: Option[UserToken], tenii: String) : Unit = {
     val dbToken = oldToken.getOrElse(UserToken(teniiId = tenii, access = "", refresh = ""))
     Future {
       connection.save(dbToken.copy(access = token.access_token, refresh = token.refresh_token))
@@ -194,7 +194,7 @@ class TrulayerActor extends Actor
     }
   }
 
-  def loadUser(teniiId: String) = {
+  def loadUser(teniiId: String) : Future[Option[UserToken]] = {
     Future {
       connection.findByTeniiId(teniiId)
     }

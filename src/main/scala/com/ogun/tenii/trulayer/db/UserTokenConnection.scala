@@ -12,14 +12,14 @@ class UserTokenConnection extends ObjectMongoConnection[UserToken] with LazyLogg
     MongoDBObject("_id" -> obj.id, "teniiId" -> obj.teniiId, "access" -> obj.access, "refresh" -> obj.refresh)
   }
 
-  def findByTeniiId(name: String): Option[UserToken] = {
-    findByProperty("teniiId", name, s"No user found with teniiId: $name")
+  def findByTeniiId(teniiId: String): Option[UserToken] = {
+    findByProperty("teniiId", teniiId, s"No user found with teniiId: $teniiId")
   }
 
   def findById(id: String): Option[UserToken] = findByObjectId(id, s"No user token found with id: $id")
 
   def findByAccessToken(token: String): Option[UserToken] = {
-    findByProperty("access", token, s"No user found with token: $token")
+    findByProperty("teniiId", token, s"No user found with token: $token")
   }
 
   override def revert(obj: MongoDBObject): UserToken = {

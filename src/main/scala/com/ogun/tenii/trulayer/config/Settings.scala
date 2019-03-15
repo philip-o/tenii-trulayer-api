@@ -2,7 +2,6 @@ package com.ogun.tenii.trulayer.config
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.util.Properties
 
 object Settings {
 
