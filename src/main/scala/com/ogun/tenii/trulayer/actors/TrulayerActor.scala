@@ -31,8 +31,8 @@ class TrulayerActor extends Actor
 
   implicit val system: ActorSystem = context.system
   implicit val mat: ActorMaterializer = ActorMaterializer()
-  val clientId: String = Properties.envOrElse("CLIENT_ID", "something")
-  val clientSecret: String = Properties.envOrElse("CLIENT_SECRET", "blabla")
+  val clientId: String = Settings.trulayerClientId
+  val clientSecret: String = Settings.trulayerClientSecret
   val redirectUrl = "https://tenii-demo.herokuapp.com/postauth"
   val http = new HttpTransfers()
   val refSize : mutable.Map[ActorRef, Int] = mutable.Map[ActorRef, Int]()
