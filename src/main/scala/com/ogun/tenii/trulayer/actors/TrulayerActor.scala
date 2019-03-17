@@ -65,7 +65,7 @@ class TrulayerActor extends Actor
             case Success(newToken) =>
               implicit val timeout2: FiniteDuration = 20.seconds
               retrieveAccounts(newToken.access_token, newToken.refresh_token, senderRef)
-              saveToken(newToken, Some(user), req.teniiId)
+              saveToken(newToken, Some(user), (req.teniiId, user.provider))
             case Failure(t) => logger.error(s"Unable to get new token for request: $req, investigate", t)
               senderRef ! AccountsAndTokenResponse(Nil, error = Some(s"Could not find a user for request: $req"))
           }
@@ -86,10 +86,14 @@ class TrulayerActor extends Actor
       case Success(token) =>
         logger.debug(s"Token is: ${token.access_token}")
         retrieveAccounts(token.access_token, token.refresh_token, senderRef)
-        val teniiId = UserUtil.newUsers.headOption.getOrElse(s"tenii-${UUID.randomUUID().toString}")
-        saveToken(token, None, teniiId)
-        UserUtil.newUsers -= teniiId
-        logger.debug(s"New users currently: ${UserUtil.newUsers}")
+        val idAndProv = UserUtil.newUsersMap.headOption
+        idAndProv.map {
+          teniiIdAndProvider =>
+            saveToken(token, None, toUserAndProvider(teniiIdAndProvider))
+            UserUtil.newUsersMap -= teniiIdAndProvider._1
+            logger.debug(s"New users currently: ${UserUtil.newUsersMap}")
+            teniiIdAndProvider
+        }
       case Failure(t) =>
         logger.error(s"Failed to get access token", t)
         senderRef ! AccountsAndTokenResponse(Nil, error = Some(s"Failed to get access token: $t"))
@@ -184,8 +188,8 @@ class TrulayerActor extends Actor
     http.postAsForm[AccessTokenInfo](s"$url",Seq(("grant_type","refresh_token"),(clientIdParam,clientId),(clientSecretParam, clientSecret),(redirectParam, redirectUrl),(refreshParam, refreshToken)))
   }
 
-  def saveToken(token: AccessTokenInfo, oldToken: Option[UserToken], tenii: String) : Unit = {
-    val dbToken = oldToken.getOrElse(UserToken(teniiId = tenii, access = "", refresh = ""))
+  def saveToken(token: AccessTokenInfo, oldToken: Option[UserToken], tenii: UserWithProvider) : Unit = {
+    val dbToken = oldToken.getOrElse(UserToken(teniiId = tenii.teniiId, access = "", refresh = "", provider = tenii.provider))
     Future {
       connection.save(dbToken.copy(access = token.access_token, refresh = token.refresh_token))
     } onComplete {

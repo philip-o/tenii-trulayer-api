@@ -9,7 +9,7 @@ class UserTokenConnection extends ObjectMongoConnection[UserToken] with LazyLogg
   val collection = "tokens"
 
   override def transform(obj: UserToken): MongoDBObject = {
-    MongoDBObject("_id" -> obj.id, "teniiId" -> obj.teniiId, "access" -> obj.access, "refresh" -> obj.refresh)
+    MongoDBObject("_id" -> obj.id, "teniiId" -> obj.teniiId, "access" -> obj.access, "refresh" -> obj.refresh, "provider" -> obj.provider)
   }
 
   def findByTeniiId(teniiId: String): Option[UserToken] = {
@@ -27,7 +27,8 @@ class UserTokenConnection extends ObjectMongoConnection[UserToken] with LazyLogg
       Some(getObjectId(obj, "_id")),
       getString(obj, "teniiId"),
       getString(obj, "access"),
-      getString(obj, "refresh")
+      getString(obj, "refresh"),
+      getString(obj, "provider")
     )
   }
 }

@@ -1,6 +1,6 @@
 package com.ogun.tenii.trulayer.implicits
 
-import com.ogun.tenii.trulayer.model.{Account, RedirectAccount}
+import com.ogun.tenii.trulayer.model.{Account, RedirectAccount, UserWithProvider}
 
 trait AccountImplicits {
 
@@ -12,6 +12,20 @@ trait AccountImplicits {
       account.currency,
       account.provider,
       balance
+    )
+  }
+
+  implicit def toUserAndProvider(teniiId: String, provider: String) : UserWithProvider = {
+    UserWithProvider(
+      teniiId,
+      provider
+    )
+  }
+
+  implicit def toUserAndProvider(idAndProvider: (String, String)) : UserWithProvider = {
+    UserWithProvider(
+      idAndProvider._1,
+      idAndProvider._2
     )
   }
 }
