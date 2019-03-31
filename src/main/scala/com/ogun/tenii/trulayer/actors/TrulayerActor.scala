@@ -1,7 +1,5 @@
 package com.ogun.tenii.trulayer.actors
 
-import java.util.UUID
-
 import akka.actor.{Actor, ActorRef, ActorSystem}
 import akka.stream.ActorMaterializer
 import com.ogun.tenii.trulayer.config.Settings
@@ -13,7 +11,7 @@ import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.util.{Failure, Properties, Success}
+import scala.util.{Failure, Success}
 import com.ogun.tenii.trulayer.helpers.{JsonSupport, NumberHelper, UserUtil}
 import com.ogun.tenii.trulayer.implicits.{AccountImplicits, TransactionImplicits}
 import com.ogun.tenii.trulayer.model.db.UserToken
@@ -86,12 +84,12 @@ class TrulayerActor extends Actor
       case Success(token) =>
         logger.debug(s"Token is: ${token.access_token}")
         retrieveAccounts(token.access_token, token.refresh_token, senderRef)
-        val idAndProv = UserUtil.newUsersMap.headOption
+        val idAndProv = UserUtil.userMap.headOption
         idAndProv.map {
           teniiIdAndProvider =>
             saveToken(token, None, toUserAndProvider(teniiIdAndProvider))
-            UserUtil.newUsersMap -= teniiIdAndProvider._1
-            logger.debug(s"New users currently: ${UserUtil.newUsersMap}")
+            UserUtil.userMap -= teniiIdAndProvider._1
+            logger.debug(s"New users currently: ${UserUtil.userMap}")
             teniiIdAndProvider
         }
       case Failure(t) =>
@@ -140,15 +138,14 @@ class TrulayerActor extends Actor
   private def processTransactions(transactions: List[Transaction], teniiId: String) : Unit = {
     implicit val duration : FiniteDuration = 20.seconds
     http.endpointGet[SourceBankAccountResponse](s"$productsUrl$accountPath$teniiId") onComplete {
-      case Success(response) => response.accountId match {
-        case Some(accountId) => http.endpointGet[GetTransactionResponse](s"$productsUrl$transactionPath/$teniiId") onComplete {
+      case Success(response) => http.endpointGet[GetTransactionResponse](s"$productsUrl$transactionPath/$teniiId") onComplete {
           case Success(tranOpt) => tranOpt.transactionIds match {
-            case Nil => loopThroughTransactions(transactions.sortWith((i,j) => NumberHelper.dateToNumber(i.timestamp.get) < NumberHelper.dateToNumber(j.timestamp.get)), accountId)
+            case Nil => loopThroughTransactions(transactions.sortWith((i,j) => NumberHelper.dateToNumber(i.timestamp.get) < NumberHelper.dateToNumber(j.timestamp.get)), response.accountId)
             case ids =>
               val transIdsAndDates = (ids, tranOpt.date.map(NumberHelper.dateToNumber).get)
               val partitioned = transactions.partition(tr => NumberHelper.dateToNumber(tr.timestamp.get) >= transIdsAndDates._2)
               val remaining = partitioned._1.filterNot(tran => ids.contains(tran.transaction_id.get))
-              loopThroughTransactions(remaining.sortWith((i,j) => NumberHelper.dateToNumber(i.timestamp.get) < NumberHelper.dateToNumber(j.timestamp.get)), accountId)
+              loopThroughTransactions(remaining.sortWith((i,j) => NumberHelper.dateToNumber(i.timestamp.get) < NumberHelper.dateToNumber(j.timestamp.get)), response.accountId)
 //              val split = transactions.span(_.transaction_id.get == ids.last)
 //              if(split._2.isEmpty)
 //                loopThroughTransactions(transactions, accountId)
@@ -157,15 +154,13 @@ class TrulayerActor extends Actor
           }
           case Failure(t) => logger.error(s"error thrown when getting last transaction, please run manually and then process for user: $teniiId", t)
         }
-        case None => logger.error(s"No account setup, unable to process transactions")
-      }
       case Failure(t) => logger.error(s"Failed to get account, unable to process transactions", t)
     }
 
     def loopThroughTransactions(toLoop: List[Transaction], accountId: String) : Unit = {
 
       for(transaction <- toLoop) {
-        http.endpoint[ProcessTransactionRequest, ProcessTransactionResponse](s"$productsUrl$transactionPath", toProcessTransactionRequest(transaction, teniiId, accountId: String)) onComplete {
+        http.endpoint[ProcessTransactionRequest, ProcessTransactionResponse](s"$productsUrl$transactionPath", toProcessTransactionRequest(transaction, teniiId, accountId)) onComplete {
           case Success(_) => logger.debug(s"Processed transaction successfully: ${transaction.transaction_id}")
           case Failure(t) => logger.error(s"Failed to process transaction: ${transaction.transaction_id}", t)
         }

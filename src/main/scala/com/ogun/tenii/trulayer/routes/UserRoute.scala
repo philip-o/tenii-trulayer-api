@@ -22,7 +22,7 @@ class UserRoute(implicit system: ActorSystem, breaker: CircuitBreaker) extends R
     post {
       entity(as[UserWithProvider]) { request =>
         logger.info(s"POST /newUser - $request")
-        UserUtil.newUsersMap += request.teniiId -> request.provider
+        UserUtil.userMap += request.teniiId -> request.provider
         complete(StatusCodes.OK -> Status())
       }
     }
